@@ -10,6 +10,7 @@ from urllib.parse import urlparse, parse_qs
 import urllib.parse
 import requests
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,41 +37,124 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN_BOT)
 try:
     aliexpress = AliexpressApi(ALIEXPRESS_API_PUBLIC, ALIEXPRESS_API_SECRET,
                                models.Language.AR, models.Currency.EUR, 'telegrameBot')
-    print("AliExpress API initialized successfully.")
+    print("✅ AliExpress API initialized successfully.")
 except Exception as e:
-    print(f"Error initializing AliExpress API: {e}")
+    print(f"❌ Error initializing AliExpress API: {e}")
 
 # Define keyboards
 keyboardStart = types.InlineKeyboardMarkup(row_width=1)
-btn1 = types.InlineKeyboardButton("⭐️ صفحة مراجعة وجمع النقاط يوميا ⭐️", url="https://s.click.aliexpress.com/e/_DdwUZVd")
+btn1 = types.InlineKeyboardButton("⭐️ صفحة مراجعة وجمع النقاط يوميا ⭐️", url="https://s.click.aliexpress.com/e/_c42am68R")
 btn2 = types.InlineKeyboardButton("⭐️تخفيض العملات على منتجات السلة 🛒⭐️", callback_data='click')
-btn3 = types.InlineKeyboardButton("❤️ اشترك في القناة للمزيد من العروض ❤️", url="https://t.me/ShopAliExpressMaroc")
+btn3 = types.InlineKeyboardButton("❤️ اشترك في القناة للمزيد من العروض ❤️", url="https://t.me/AliExPressuperDeals")
 btn4 = types.InlineKeyboardButton("🎬 شاهد كيفية عمل البوت 🎬", url="https://t.me/ShopAliExpressMaroc/9")
 btn5 = types.InlineKeyboardButton("💰 حمل تطبيق Aliexpress عبر الضغط هنا للحصول على مكافأة 5 دولار 💰", url="https://a.aliexpress.com/_mtV0j3q")
 keyboardStart.add(btn1, btn2, btn3, btn4)
 
 keyboard = types.InlineKeyboardMarkup(row_width=1)
-btn1 = types.InlineKeyboardButton("⭐️ صفحة مراجعة وجمع النقاط يوميا ⭐️", url="https://s.click.aliexpress.com/e/_DdwUZVd")
+btn1 = types.InlineKeyboardButton("⭐️ صفحة مراجعة وجمع النقاط يوميا ⭐️", url="https://s.click.aliexpress.com/e/_c42am68R")
 btn2 = types.InlineKeyboardButton("⭐️تخفيض العملات على منتجات السلة 🛒⭐️", callback_data='click')
-btn3 = types.InlineKeyboardButton("❤️ اشترك في القناة للمزيد من العروض ❤️", url="https://t.me/ShopAliExpressMaroc")
+btn3 = types.InlineKeyboardButton("❤️ اشترك في القناة للمزيد من العروض ❤️", url="https://t.me/AliExPressuperDeals")
 keyboard.add(btn1, btn2, btn3)
 
 keyboard_games = types.InlineKeyboardMarkup(row_width=1)
-btn1 = types.InlineKeyboardButton("⭐️ صفحة مراجعة وجمع النقاط يوميا ⭐️", url="https://s.click.aliexpress.com/e/_DdwUZVd")
+btn1 = types.InlineKeyboardButton("⭐️ صفحة مراجعة وجمع النقاط يوميا ⭐️", url="https://s.click.aliexpress.com/e/_c42am68R")
 btn2 = types.InlineKeyboardButton("⭐️ لعبة Merge boss ⭐️", url="https://s.click.aliexpress.com/e/_DlCyg5Z")
 btn3 = types.InlineKeyboardButton("⭐️ لعبة Fantastic Farm ⭐️", url="https://s.click.aliexpress.com/e/_DBBkt9V")
 btn4 = types.InlineKeyboardButton("⭐️ لعبة قلب الاوراق Flip ⭐️", url="https://s.click.aliexpress.com/e/_DdcXZ2r")
 btn5 = types.InlineKeyboardButton("⭐️ لعبة GoGo Match ⭐️", url="https://s.click.aliexpress.com/e/_DDs7W5D")
 keyboard_games.add(btn1, btn2, btn3, btn4, btn5)
 
-# Define function to get exchange rate from USD to MAD
-def get_usd_to_mad_rate():
+# User tracking functions
+def track_user(user_id, username=None, first_name=None):
+    """Track unique users in a JSON file"""
+    try:
+        # Load existing users
+        try:
+            with open('users.json', 'r', encoding='utf-8') as f:
+                users = json.load(f)
+        except FileNotFoundError:
+            users = {}
+        
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Add new user if not exists
+        if str(user_id) not in users:
+            users[str(user_id)] = {
+                'username': username,
+                'first_name': first_name,
+                'first_seen': current_time,
+                'last_seen': current_time,
+                'message_count': 1
+            }
+            print(f"✅ New user added: {user_id} (@{username})")
+        else:
+            # Update existing user
+            users[str(user_id)]['last_seen'] = current_time
+            users[str(user_id)]['message_count'] += 1
+            # Update username/first_name if changed
+            if username:
+                users[str(user_id)]['username'] = username
+            if first_name:
+                users[str(user_id)]['first_name'] = first_name
+        
+        # Save updated users
+        with open('users.json', 'w', encoding='utf-8') as f:
+            json.dump(users, f, indent=2, ensure_ascii=False)
+        
+        return len(users)
+    except Exception as e:
+        print(f"❌ Error tracking user: {e}")
+        return 0
+
+def get_user_stats():
+    """Get statistics about bot users"""
+    try:
+        with open('users.json', 'r', encoding='utf-8') as f:
+            users = json.load(f)
+        
+        total_users = len(users)
+        total_messages = sum(user['message_count'] for user in users.values())
+        
+        # Get today's date
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        # Count users who joined today
+        new_today = sum(1 for user in users.values() 
+                       if user['first_seen'].startswith(today))
+        
+        # Count active users today
+        active_today = sum(1 for user in users.values() 
+                          if user['last_seen'].startswith(today))
+        
+        return {
+            'total_users': total_users,
+            'total_messages': total_messages,
+            'new_today': new_today,
+            'active_today': active_today
+        }
+    except FileNotFoundError:
+        return {
+            'total_users': 0,
+            'total_messages': 0,
+            'new_today': 0,
+            'active_today': 0
+        }
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
+        return None
+
+# Define function to get exchange rates from USD to MAD and DZD
+def get_exchange_rates():
+    """Fetch current exchange rates for MAD and DZD"""
     try:
         response = requests.get('https://api.exchangerate-api.com/v4/latest/USD')
         data = response.json()
-        return data['rates']['MAD']
+        return {
+            'MAD': data['rates']['MAD'],
+            'DZD': data['rates']['DZD']
+        }
     except Exception as e:
-        print(f"Error fetching exchange rate: {e}")
+        print(f"❌ Error fetching exchange rates: {e}")
         return None
 
 # Define function to resolve redirect chain and get final URL
@@ -171,16 +255,55 @@ def generate_bundle_affiliate_link(product_id, original_link):
 @bot.message_handler(commands=['start'])
 def welcome_user(message):
     print("Handling /start command")
+    
+    # Track the user
+    total_users = track_user(
+        message.from_user.id, 
+        message.from_user.username,
+        message.from_user.first_name
+    )
+    print(f"📊 Total users: {total_users}")
+    
     bot.send_message(
         message.chat.id,
         "مرحبا بكم👋 \n" 
         "أنا علي إكسبريس بوت أقوم بتخفيض المنتجات و البحث  عن أفضل العروض إنسخ رابط المنتج وضعه هنا 👇 ستجد جميع عروض المنتج بثمن أقل 🔥",
         reply_markup=keyboardStart)
 
+@bot.message_handler(commands=['stats'])
+def show_stats(message):
+    """Show bot statistics - can be restricted to admin only"""
+    try:
+        stats = get_user_stats()
+        
+        if stats:
+            stats_text = (
+                f"📊 إحصائيات البوت:\n\n"
+                f"👥 إجمالي المستخدمين: {stats['total_users']}\n"
+                f"💬 إجمالي الرسائل: {stats['total_messages']}\n"
+                f"🆕 مستخدمين جدد اليوم: {stats['new_today']}\n"
+                f"✅ نشطين اليوم: {stats['active_today']}\n"
+            )
+            
+            bot.send_message(message.chat.id, stats_text)
+        else:
+            bot.send_message(message.chat.id, "❌ حدث خطأ في جلب الإحصائيات")
+    except Exception as e:
+        print(f"Error in show_stats: {e}")
+        bot.send_message(message.chat.id, "❌ لا توجد إحصائيات متاحة")
+
 @bot.message_handler(func=lambda message: True)
 def echo_all(message):
     try:
         print(f"Message received: {message.text}")
+        
+        # Track user activity
+        track_user(
+            message.from_user.id,
+            message.from_user.username,
+            message.from_user.first_name
+        )
+        
         link = extract_link(message.text)
         sent_message = bot.send_message(message.chat.id, 'المرجو الانتظار قليلا، يتم تجهيز العروض ⏳')
         message_id = sent_message.message_id
@@ -251,22 +374,27 @@ def get_affiliate_links(message, message_id, link):
                 title_link = product_details[0].product_title
                 img_link = product_details[0].product_main_image_url
                 
-                # Convert price to MAD
-                exchange_rate = get_usd_to_mad_rate()
-                if exchange_rate:
-                    price_pro_mad = price_pro * exchange_rate
+                # Get exchange rates for both MAD and DZD
+                exchange_rates = get_exchange_rates()
+                if exchange_rates:
+                    price_pro_mad = price_pro * exchange_rates['MAD']
+                    price_pro_dzd = price_pro * exchange_rates['DZD']
                 else:
-                    price_pro_mad = price_pro  # fallback to USD if exchange rate not available
+                    # Fallback to USD if exchange rates not available
+                    price_pro_mad = price_pro
+                    price_pro_dzd = price_pro
                 
                 print(f"Product details: {title_link}, {price_pro}, {img_link}")
                 bot.delete_message(message.chat.id, message_id)
                 
-                # Build the message with all affiliate links
+                # Build the message with all affiliate links and both currencies
                 message_text = (
                     f" \n🛒 منتجك هو : 🔥 \n"
-                    f" {title_link} 🛍 \n"
+                    f" {title_link} �️ \n"
                     f" سعر المنتج : "
-                    f" {price_pro:.2f} دولار 💵 / {price_pro_mad:.2f} درهم مغربي 💵\n"
+                    f" {price_pro:.2f} دولار 💵\n"
+                    f" {price_pro_mad:.2f} درهم مغربي 🇲🇦\n"
+                    f" {price_pro_dzd:.2f} دينار جزائري 🇩🇿\n"
                     " \n قارن بين الاسعار واشتري 🔥 \n"
                 )
                 
@@ -392,6 +520,14 @@ def get_affiliate_shopcart_link(link, message):
 def handle_callback_query(call):
     try:
         print(f"Callback query received: {call.data}")
+        
+        # Track user activity on callback
+        track_user(
+            call.from_user.id,
+            call.from_user.username,
+            call.from_user.first_name
+        )
+        
         if call.data == 'click':
             # Replace with your link and message if needed
             link = 'https://www.aliexpress.com/p/shoppingcart/index.html?'
